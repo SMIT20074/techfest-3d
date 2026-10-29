@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Techfest 3D | Step inside the core</title>
+<meta name="description" content="An interactive 3D concept for Techfest: scroll to fly through the core, drag it, and explore six worlds.">
+<meta name="theme-color" content="#08060f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%2308060f%27/%3E%3Cpath d=%27M16 5l9 5v12l-9 5-9-5V10z%27 fill=%27none%27 stroke=%27%238b5cff%27 stroke-width=%272.5%27/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;600&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<style>
+:root{--void:#08060f;--ink:#f4efff;--mute:#b9b0d4;--acc:#8b5cff}
+*{box-sizing:border-box;margin:0}
+a{color:inherit}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:8px;z-index:20;background:#fff;color:#000;padding:10px 16px}.skip:focus{left:8px}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+#gl.drag{cursor:grabbing}#gl.hot{cursor:pointer}
+body.nogl #gl{display:none}
+body.nogl{background:radial-gradient(circle at 70% 40%,#2a1670,var(--void) 60%)}
+#loader{position:fixed;inset:0;z-index:30;background:var(--void);display:grid;place-items:center;font-family:'Unbounded',sans-serif;letter-spacing:.2em;font-size:.8rem;transition:opacity .6s}
+#loader.off{opacity:0;pointer-events:none}
+header{position:fixed;top:0;left:0;right:0;z-index:10;background:linear-gradient(rgba(8,6,15,.75),transparent);display:flex;justify-content:space-between;align-items:center;padding:18px 6vw;padding-top:max(18px,env(safe-area-inset-top))}
+.brand{font-family:'Unbounded',sans-serif;font-weight:800;letter-spacing:.08em;text-decoration:none;font-size:1rem}
+.brand b{color:var(--acc);transition:color .4s}
+nav{display:flex;gap:6px}
+nav a{padding:12px 14px;min-height:44px;text-decoration:none;font-size:.9rem;color:var(--mute);display:inline-flex;align-items:center}
+nav a:hover,nav a[aria-current]{color:#fff}
+.rail{position:fixed;right:max(16px,2.2vw);top:50%;transform:translateY(-50%);z-index:10;display:grid;gap:6px}
+.rail a{width:44px;height:28px;display:grid;place-items:center}
+.rail i{width:10px;height:10px;border:2px solid var(--mute);border-radius:50%;transition:all .3s}
+.rail a[aria-current] i{background:var(--acc);border-color:var(--acc);transform:scale(1.5);box-shadow:0 0 14px var(--acc)}
+main{position:relative;z-index:5;pointer-events:none}
+section{min-height:100vh;display:flex;align-items:center;padding:110px 6vw 80px}
+section.tall{min-height:140vh}
+.col{max-width:560px;pointer-events:none}
+.col>*{pointer-events:auto}
+.kick{font-size:.8rem;letter-spacing:.25em;text-transform:uppercase;color:var(--acc);font-weight:600;transition:color .4s}
+h1,h2{font-family:'Unbounded',sans-serif;font-weight:800;line-height:1.05;margin:14px 0 20px;text-wrap:balance}
+h1{font-size:clamp(2.5rem,7vw,5.6rem)}
+h2{font-size:clamp(1.9rem,4.4vw,3.4rem)}
+p{color:var(--mute);max-width:46ch;text-shadow:0 1px 12px #08060f,0 0 4px #08060f}
+.btn{display:inline-flex;align-items:center;gap:10px;margin:26px 12px 0 0;padding:14px 26px;min-height:48px;border:2px solid var(--acc);color:#fff;background:rgba(8,6,15,.5);text-decoration:none;font-weight:600;border-radius:999px;cursor:pointer;font:inherit;font-weight:600;transition:background .25s,transform .25s}
+.btn:hover{background:var(--acc);color:#08060f;transform:translateY(-2px)}
+.btn.solid{background:var(--acc);color:#08060f}
+.evs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:26px}
+.ev{display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:52px;background:rgba(20,14,40,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);color:var(--ink);font:inherit;font-weight:600;border-radius:14px;cursor:pointer;text-align:left;transition:border-color .2s,transform .2s}
+.ev i{width:12px;height:12px;border-radius:50%;flex:none}
+.ev:hover,.ev.hot{transform:translateX(4px);border-color:var(--acc)}
+.ev[aria-pressed=true]{border-color:#fff;background:rgba(40,28,80,.9)}
+#panel{margin-top:18px;padding:18px 20px;background:rgba(20,14,40,.72);backdrop-filter:blur(8px);border-left:4px solid var(--acc);border-radius:4px 14px 14px 4px;min-height:96px;transition:border-color .4s}
+#panel b{display:block;color:#fff;font-family:'Unbounded',sans-serif;font-size:1rem;margin-bottom:4px}
+.rows{margin-top:30px;border-top:1px solid rgba(255,255,255,.18);background:rgba(8,6,15,.62);backdrop-filter:blur(6px);padding:0 16px;border-radius:0 0 14px 14px}
+.rows div{display:flex;justify-content:space-between;gap:24px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.18)}
+.rows b{font-family:'Unbounded',sans-serif;color:#fff;font-size:1.05rem}
+.rows span{color:var(--mute);text-align:right;max-width:26ch}
+.rv{opacity:0;transform:translateY(28px);transition:opacity .8s,transform .8s}
+.rv.in{opacity:1;transform:none}
+#tip{position:fixed;z-index:12;pointer-events:none;padding:6px 12px;background:#fff;color:#08060f;font-weight:600;font-size:.85rem;border-radius:999px;opacity:0;transform:translate(14px,14px);transition:opacity .15s}
+.hint{transition:opacity .4s;position:fixed;bottom:22px;left:6vw;z-index:10;font-size:.8rem;color:var(--mute);letter-spacing:.08em}
+footer{position:relative;z-index:5;padding:28px 6vw;font-size:.85rem;color:var(--mute);background:linear-gradient(transparent,#08060f)}
+@media(max-width:900px){
+  section{align-items:flex-end;padding-bottom:64px}
+  .col{background:linear-gradient(180deg,rgba(8,6,15,.8),rgba(8,6,15,.66));padding:22px;margin:0 -6px;border-radius:18px;backdrop-filter:blur(3px)}
+  nav a{padding:12px 8px}.rail{display:none}.evs{grid-template-columns:1fr 1fr}.hint{display:none}
+}
+@media(max-width:480px){nav a:not(:last-child){display:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="loader" role="status">BOOTING THE CORE</div>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="tip" aria-hidden="true"></div>
+
+<header>
+  <a class="brand" href="#hero">TECH<b>FEST</b> 3D</a>
+  <nav aria-label="Chapters"><a href="#worlds">Worlds</a><a href="#inside">Inside</a><a href="#join">Join</a></nav>
+</header>
+<nav class="rail" aria-label="Chapter progress"><a href="#hero" aria-label="Start"><i></i></a><a href="#worlds" aria-label="Worlds"><i></i></a><a href="#inside" aria-label="Inside"><i></i></a><a href="#join" aria-label="Join"><i></i></a></nav>
+<div class="hint" aria-hidden="true">SCROLL TO FLY &nbsp;/&nbsp; DRAG THE CORE</div>
+
+<main id="main">
+  <section id="hero"><div class="col">
+    <div class="kick rv">Techfest &middot; IIT Bombay</div>
+    <h1 class="rv">Step inside the core of tomorrow.</h1>
+    <p class="rv">Scroll to fly through it. Drag it, spin it, and pick a world. A student concept for the Techfest CA Program.</p>
+    <a class="btn solid rv" href="#worlds">Enter</a><a class="btn rv" href="#join">Join the fest</a>
+  </div></section>
+
+  <section id="worlds" class="tall"><div class="col">
+    <div class="kick rv">Chapter 01</div>
+    <h2 class="rv">Six worlds, one fest.</h2>
+    <p class="rv">Each node orbiting the core is a world. Tap one, here or in space, and the core reshapes itself.</p>
+    <div class="evs rv" id="evs"></div>
+    <div id="panel" class="rv" aria-live="polite"><b>Pick a world</b>Choose a button or click an orbiting node to morph the core.</div>
+  </div></section>
+
+  <section id="inside"><div class="col">
+    <div class="kick rv">Chapter 02</div>
+    <h2 class="rv">Learn from people who build it.</h2>
+    <p class="rv">Inside the core, the work is shared. Four ways to take part.</p>
+    <div class="rows rv">
+      <div><b>Talks</b><span>Ideas from the people shaping technology</span></div>
+      <div><b>Workshops</b><span>Hands-on sessions you leave with a project from</span></div>
+      <div><b>Exhibitions</b><span>Machines and models you can touch</span></div>
+      <div><b>Competitions</b><span>Teams, deadlines and real prizes</span></div>
+    </div>
+  </div></section>
+
+  <section id="join"><div class="col">
+    <div class="kick rv">Chapter 03</div>
+    <h2 class="rv">Be part of what comes next.</h2>
+    <p class="rv">Bring Techfest to your campus. Campus Ambassadors spread the word, build a team and earn rewards.</p>
+    <a class="btn solid rv" href="https://ca.techfest.org/">Become a Campus Ambassador</a><a class="btn rv" href="#hero">Back to the core</a>
+  </div></section>
+</main>
+<footer>Unofficial student concept built for the Techfest CA Program &middot; Built with Three.js</footer>
+
+<script type="module">
+import * as THREE from 'three';
+const $=s=>document.querySelector(s),reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const EV=[
+ {n:'Robotics',c:'#ff4d6d',g:()=>new THREE.IcosahedronGeometry(1.5,1),d:'Autonomous bots, arenas and engineers who treat gravity as a suggestion.'},
+ {n:'AI & Data',c:'#6c8bff',g:()=>new THREE.OctahedronGeometry(1.7,1),d:'Models, datasets and hackathons where the best idea ships by morning.'},
+ {n:'Space',c:'#b36cff',g:()=>new THREE.TorusGeometry(1.25,.45,14,44),d:'Rockets, satellites and the people who look up for a living.'},
+ {n:'Gaming',c:'#c6ff3d',g:()=>new THREE.DodecahedronGeometry(1.6,0),d:'Worlds built from code and played by thousands.'},
+ {n:'Design',c:'#ffb347',g:()=>new THREE.TorusKnotGeometry(1,.3,110,14),d:'Interfaces, motion and visuals that make technology feel human.'},
+ {n:'Startups',c:'#3dffd0',g:()=>new THREE.TetrahedronGeometry(1.9,1),d:'Pitch, prototype and find out what the market thinks.'}];
+const CH=['#8b5cff','#ff4d6d','#3dffd0','#c6ff3d'];
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:true,alpha:false,powerPreference:'high-performance'})}
+catch(e){document.body.classList.add('nogl');$('#loader').classList.add('off')}
+if(renderer){
+const small=innerWidth<700;
+renderer.setPixelRatio(Math.min(devicePixelRatio,small?1.5:1.75));
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x08060f);scene.fog=new THREE.FogExp2(0x08060f,.022);
+const cam=new THREE.PerspectiveCamera(50,1,.1,120);
+const accent=new THREE.Color(CH[0]),accT=new THREE.Color(CH[0]);
+
+// lights
+scene.add(new THREE.AmbientLight(0x6a5cff,.35));
+const pl=new THREE.PointLight(0xffffff,40,30);scene.add(pl);
+const rim=new THREE.DirectionalLight(0xffffff,1.2);rim.position.set(5,6,4);scene.add(rim);
+
+// core
+const spr=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const core=new THREE.Group();scene.add(core);
+const solid=new THREE.Mesh(EV[0].g(),new THREE.MeshStandardMaterial({color:0x14102a,metalness:.5,roughness:.35,flatShading:true,emissive:accent,emissiveIntensity:.35,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const wire=new THREE.LineSegments(new THREE.WireframeGeometry(solid.geometry),new THREE.LineBasicMaterial({color:accent,transparent:true,opacity:.95}));
+const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:spr,color:accent,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.setScalar(9);
+const shell=new THREE.LineSegments(wire.geometry,new THREE.LineBasicMaterial({color:accent,transparent:true,opacity:.22}));shell.scale.setScalar(1.28);
+core.add(solid,wire,shell,halo);
+let sel=-1,shown=-1,coreS=1,coreT=1;
+function setGeo(i){const g=(i<0?EV[0]:EV[i]).g();solid.geometry.dispose();wire.geometry.dispose();solid.geometry=g;wire.geometry=new THREE.WireframeGeometry(g);shell.geometry=wire.geometry}
+
+// orbit nodes
+const orbit=new THREE.Group();orbit.rotation.set(.4,0,.22);scene.add(orbit);
+const R=4.4,nodes=EV.map((e,i)=>{
+  const m=new THREE.Mesh(new THREE.OctahedronGeometry(.3),new THREE.MeshStandardMaterial({color:e.c,emissive:e.c,emissiveIntensity:.8,flatShading:true}));
+  const hit=new THREE.Mesh(new THREE.SphereGeometry(.75),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+  hit.userData.i=i;m.add(hit);m.userData={i,s:1};orbit.add(m);return m});
+const ringPts=[];for(let k=0;k<=96;k++){const a=k/96*Math.PI*2;ringPts.push(new THREE.Vector3(Math.cos(a)*R,0,Math.sin(a)*R))}
+orbit.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.18})));
+
+// particles
+const N=small?900:2200,pa=new Float32Array(N*3);
+for(let i=0;i<N;i++){const r=7+Math.random()*30,t=Math.random()*6.283,p=Math.acos(2*Math.random()-1);pa[i*3]=r*Math.sin(p)*Math.cos(t);pa[i*3+1]=r*Math.sin(p)*Math.sin(t);pa[i*3+2]=r*Math.cos(p)}
+const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pa,3));
+const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:accent,map:spr,size:.28,alphaTest:.02,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(pts);
+
+// camera path
+const path=new THREE.CatmullRomCurve3([new THREE.Vector3(0,.3,10),new THREE.Vector3(7,2.6,6.8),new THREE.Vector3(1.2,.6,5.6),new THREE.Vector3(0,4,17)]);
+const cp=new THREE.Vector3(),look=new THREE.Vector3();
+
+// layout / scroll mapping
+const secs=[...document.querySelectorAll('main section')];let tops=[],W=1,H=1;
+function layout(){W=innerWidth;H=innerHeight;renderer.setSize(W,H,false);cam.aspect=W/H;cam.updateProjectionMatrix();tops=secs.map(s=>s.offsetTop)}
+addEventListener('resize',layout);layout();
+function chapter(){const y=scrollY;let c=0;for(let k=0;k<tops.length-1;k++){if(y>=tops[k]){c=k+Math.min(1,(y-tops[k])/Math.max(1,tops[k+1]-tops[k]))}}return Math.min(c,tops.length-1)}
+
+// selection
+const evs=$('#evs'),panel=$('#panel'),tip=$('#tip'),gl=$('#gl');
+EV.forEach((e,i)=>{const b=document.createElement('button');b.className='ev';b.dataset.i=i;b.setAttribute('aria-pressed','false');b.innerHTML=`<i style="background:${e.c}"></i>${e.n}`;
+  b.onclick=()=>select(i);b.onmouseenter=b.onfocus=()=>{nodes[i].userData.s=1.7;b.classList.add('hot')};b.onmouseleave=b.onblur=()=>{nodes[i].userData.s=1;b.classList.remove('hot')};evs.appendChild(b)});
+function select(i){sel=sel===i?-1:i;coreT=0;
+  evs.querySelectorAll('.ev').forEach((b,k)=>b.setAttribute('aria-pressed',String(k===sel)));
+  panel.innerHTML=sel<0?'<b>Pick a world</b>Choose a button or click an orbiting node to morph the core.':`<b>${EV[sel].n}</b>${EV[sel].d}`}
+
+// pointer: hover, click, drag
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2(9,9),par=new THREE.Vector2();
+let down=false,moved=0,vx=0,vy=0,lx=0,ly=0,hover=-1;
+function setPtr(e){ptr.set(e.clientX/W*2-1,-(e.clientY/H)*2+1);par.set(ptr.x,ptr.y)}
+gl.addEventListener('pointerdown',e=>{down=true;moved=0;lx=e.clientX;ly=e.clientY;gl.classList.add('drag');gl.setPointerCapture(e.pointerId)});
+gl.addEventListener('pointermove',e=>{setPtr(e);
+  if(down){const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);vy=dx*.008;vx=e.pointerType==='touch'?0:dy*.008}
+  tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px'});
+addEventListener('pointerup',e=>{if(down&&moved<6&&hover>=0)select(hover);down=false;gl.classList.remove('drag')});
+gl.addEventListener('pointerleave',()=>{ptr.set(9,9);hover=-1});
+
+// reveal
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.2});
+document.querySelectorAll('.rv').forEach((el,i)=>{el.style.transitionDelay=(i%5)*90+'ms';io.observe(el)});
+const hint=$('.hint'),railA=[...document.querySelectorAll('.rail a')],navA=[...document.querySelectorAll('nav a')];
+
+// loop
+const clock=new THREE.Clock();let prog=0,fr=0,cur=-1,first=true;
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime,c=chapter(),target=c/3;
+  prog+=(target-prog)*(reduce?1:1-Math.exp(-dt*5));
+  path.getPoint(Math.min(Math.max(prog,0),1),cp);
+  cam.position.set(cp.x+par.x*.5,cp.y+par.y*.3,cp.z);
+  const dist=cp.length(),ox=W>900?2.4*dist/10:0,oy=W>900?0:1.9*dist/10;
+  look.set(-ox,-oy,0);cam.lookAt(look);
+  // core morph
+  if(coreT===0&&coreS<.06){setGeo(sel);shown=sel;coreT=1}
+  coreS+=(coreT-coreS)*(1-Math.exp(-dt*(reduce?30:9)));core.scale.setScalar(Math.max(coreS,.001));
+  if(!reduce&&!down)core.rotation.y+=dt*.25;
+  core.rotation.y+=vy;core.rotation.x+=vx;vx*=.92;vy*=.92;core.rotation.x+=(par.y*.25-core.rotation.x)*.02;
+  // nodes
+  ray.setFromCamera(ptr,cam);const hits=ray.intersectObjects(nodes.map(n=>n.children[0]));
+  hover=hits.length?hits[0].object.userData.i:-1;
+  gl.classList.toggle('hot',hover>=0);tip.style.opacity=hover>=0?1:0;if(hover>=0)tip.textContent=EV[hover].n;
+  nodes.forEach((n,i)=>{const a=i/6*Math.PI*2+(reduce?0:t*.18);n.position.set(Math.cos(a)*R,Math.sin(t*.8+i)*.15,Math.sin(a)*R);
+    n.rotation.y+=dt*1.2;const s=n.userData.s*(hover===i?1.7:1)*(sel===i?1.4:1);n.scale.setScalar(n.scale.x+(s-n.scale.x)*.15)});
+  // colour
+  accT.set(sel>=0&&c<1.7?EV[sel].c:CH[Math.round(c)]);accent.lerp(accT,1-Math.exp(-dt*4));
+  solid.material.emissive.copy(accent);solid.material.emissiveIntensity=.35+.12*Math.sin(t*2);shell.rotation.y=-t*.3;shell.rotation.x=t*.15;shell.material.color.copy(accent);
+  wire.material.color.copy(accent);halo.material.color.copy(accent);pts.material.color.copy(accent);pl.color.copy(accent);
+  pts.rotation.y=t*.012+prog*1.4;pts.rotation.x=prog*.4;
+  if(++fr%5===0){hint.style.opacity=c>.25?0:1;document.documentElement.style.setProperty('--acc','#'+accent.getHexString());
+    const k=Math.round(c);if(k!==cur){cur=k;railA.forEach((a,j)=>j===k?a.setAttribute('aria-current','true'):a.removeAttribute('aria-current'));navA.forEach(a=>a.removeAttribute('aria-current'));if(k>0)navA[k-1].setAttribute('aria-current','true')}}
+  renderer.render(scene,cam);
+  if(first){first=false;$('#loader').classList.add('off')}
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+window.__tf={get sel(){return sel},get shown(){return shown},get prog(){return prog},select,get ready(){return !first}};
+}
+</script>
+<noscript><style>#loader{display:none}.rv{opacity:1;transform:none}</style></noscript>
+</body>
+</html>
